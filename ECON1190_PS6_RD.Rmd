@@ -1,0 +1,448 @@
+---
+title: 'ECON 1190 Problem Set 6: Regression Discontinuity'
+author: "Claire Duquennois"
+date: ""
+output:
+ pdf_document:
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+***Name: Benjamin Houck***
+
+
+
+# Empirical Analysis using Data from Manacorda, Miguel, & Vigorito (2011, American Economic Journal: Applied Economics)
+
+
+This exercise uses data from Manacorda, Miguel, & Vigorito's paper, "Government Transfers and Political Support," published in the *American Economic Journal: Applied Economics* in 2011. This paper studies how receipt of a government anti-poverty cash transfer changes how beneficiary households support and view the government. 
+
+The data can be found on Edward Miguel's faculty website. Download and extract the contents from the `Government_Transfers_replication.zip` file. 
+
+
+
+**Submission instructions:**
+
+1) Knit your assignment in PDF.
+
+2) **Assignment shell extra credit:** You will receive a little extra credit if your answers line up correctly with the answer positions of the template on gradescope. For this to work 
+
+- **Work by putting your answers directly into this R markdown file that is pre-formatted for you!**
+
+- Make sure you have ONE question and answer per page (this is how the template is structured and  allows gradescope to easily find your answers), unless the question indicated that the answer will require two pages because of large tables. 
+
+- Your final PDF should be 25 pages. 
+
+- You can insert needed page breaks as illustrated below
+
+- Make sure you do not "print" the data. If you change the data, make sure you store with a structure like: newname<-modification(olddata). If you only type modification(olddata), R will display the data rather than saving your modifications
+
+
+3) Upload your assignment PDF to gradescope.
+
+
+\pagebreak
+
+
+# Set up and constructing the data
+
+The original data used in the paper is confidential. The authors instead provide the `reg_panes.dta` data file which is anonymized and created from the original data. 
+
+## Question: Loading the Packages
+
+Load any R packages you will be using:
+
+**Code:**
+```{r packages}
+library(dplyr)
+library(tidyverse)
+library(stargazer)
+library(lfe)
+library(haven)
+```
+
+
+
+
+\pagebreak
+
+## Question: Open the `reg_panes.dta` file. To complete this problem set you will need the following variables from this data file: 
+
+| Name            |Description                                        |
+|-----------------|---------------------------------------------------|
+|aprobado         |Ever received PANES 2005-2007                      |
+|untracked07      | Untracked in 2007                                 |
+|h_89             |Supports current government 2007 [1 to 3]|         |
+|hv34             |Supports current government 2008 [1 to 3]|         | 
+|ind_reest        |Predicted Income                                   | 
+|newtreat         |PANES eligibility                                  |
+
+
+
+Drop all other variables. If needed, give the variables you are keeping more intuitive names. 
+
+
+**Code:**
+```{r open data}
+df <- read_dta("reg_panes.dta")
+df <- df %>% select(aprobado,untracked07,h_89,hv34,ind_reest,newtreat)
+
+```
+
+\pagebreak
+
+## **Question: The data as downloaded will require that you clean the variables of interest and construct a new dataset to generate the graphs. Start by generating the following cleaned variable:**
+
+-An indicator for receiving PANES that is NA if a respondent is untracked in 2007
+
+**Code:**
+```{r indicator}
+df$indicator <- ifelse(df$untracked07==0,NA,df$untracked07)
+```
+
+\pagebreak
+
+## **Question: We are going to re-scale the variables that indicate support for the current government so that responses range from 0 to 1. To do this, tabulate the current variable to see how it is distributed and then generate a variable that will be NA if it is currently coded as 9, 0 if currently 2, 0.5 if currently 1 and 1 if currently 3. Do this for both the 2007 and 2008 variable. **
+
+Note: This is how the authors modify this variable in their code. It seems counter intuitive and does not correspond to the description of how this variable is coded in the survey questionnaire as reported in their appendix though it does correspond to their discussion in footnote 12. My guess is the transcription/translation of the survey question is incorrect.
+
+**Code:**
+```{r rescaling}
+
+table(df$h_89)
+table(df$hv34)
+df$rs07 <- ifelse(df$h_89==9,NA,ifelse(df$h_89==2,0,ifelse(df$h_89==1,0.5,1)))
+df$rs08 <- ifelse(df$hv34==9,NA,ifelse(df$hv34==2,0,ifelse(df$hv34==1,0.5,1)))
+```
+
+\pagebreak
+
+## **Question: Generate a variable that is the square of predicted income.**
+
+**Code:**
+```{r predicted sqd}
+df$psqd <- (df$ind_reest)^2
+```
+\pagebreak
+
+# We start by reproducing the main figures (2, 3,and 4) of the paper as good figures are key to any regression discontinuity paper.
+
+
+## **Question: The data consists of over 3000 observations. How many points are plotted on these figures? How should we interpret the y axis? How many points are plotted below the threshold? How many points are plotted above the threshold?**
+
+**Answer:**
+This points are averaged into 45 bins. Table two sets the y-axis as treatment eligibility. The threshold on the x-axis is the income level the program was designed to be based on. Figure 3 places government support in 2007 on the y-axis with income on the x-axis. This compares the baseline of government support with respect to income. Figure 4 places government support on the y-axis, comparing the post treatment support with income. In each figure there are 15 points above the threshold while 30 are placed below. 
+
+\pagebreak
+
+## **Question: Why is the number of points above the threshold different from the number below? **
+
+**Answer:**
+
+The difference in the number of points above and below the threshold is due to the unequal distribution of households relative to the threshold. Specifically, there are more households below the threshold than above it, which results in a greater number of data points in the lower range. This unequal distribution could be driven by various factors, such as the design of the policy or the way the income or eligibility cutoff is set. As a result, more "bins" or groups of households are formed below the threshold, leading to a higher number of observations in that region. 
+
+\pagebreak
+
+
+## **Question: Replicating these figures will require restructuring our data and calculating the values that are plotted. Generate a variable that will indicate the percentile group the observation is in. Note the difference in the number of percentile groups above and below the threshold. **
+
+Hint: you may find the `xtile` function in R useful. Use it to split the sample below the threshold into 30 bins. Then split the sample at or above the threshold into 15 bins. The make sure the bin numbers above and below the threshold are not repeated and will be ordered correctly.
+
+**Code:**
+```{r initial figures}
+threshold <- 0
+
+# Split data into below and at/above threshold
+below_threshold <- df$ind_reest[df$ind_reest < threshold]
+above_threshold <- df$ind_reest[df$ind_reest >= threshold]
+
+# Using cut to divide data into quartiles
+below_bins <- cut(below_threshold, breaks = 30, labels = FALSE)
+above_bins <- cut(above_threshold, breaks = 15, labels = FALSE)
+
+
+# Re-index the bins to avoid overlap
+below_bins <- as.numeric(below_bins)  # 1 to 30
+above_bins <- as.numeric(above_bins) + 30  # 31 to 45
+
+# Combine the bins back into the dataset
+df$percentile_group <- NA
+df$percentile_group[df$ind_reest < threshold] <- below_bins
+df$percentile_group[df$ind_reest >= threshold] <- above_bins
+
+```
+
+
+\pagebreak
+
+
+## **Question: For each of the percentile groups, calculate the mean of each of the variables we will use for plotting: predicted income, receipt of PANES, support for the government in 2007, and support for the government in 2008.**
+
+**Code:**
+```{r bin means}
+# Calculate mean for each percentile group
+summary_stats <- df %>%
+  group_by(percentile_group) %>%
+  summarise(
+    mean_income = mean(ind_reest, na.rm = TRUE),
+    mean_PANES = mean(newtreat, na.rm = TRUE),
+    mean_support_2007 = mean(rs07, na.rm = TRUE),
+    mean_support_2008 = mean(rs08, na.rm = TRUE)
+  )
+
+```
+
+
+\pagebreak
+
+
+## **Question: Replicate figure 2. Make the figure as clear and informative as possible. You may want to create an indicator variable for percentiles above and below the threshold. ** 
+
+**Code:**
+```{r table 2, results='asis'}
+
+ggplot(summary_stats, aes(x = mean_income, y = mean_PANES, color = factor(mean_PANES))) +
+  geom_point(alpha = 0.6, size = 2) +  # Add points with some transparency
+  scale_color_manual(values = c("blue", "red"), labels = c("Below Threshold", "Above Threshold")) +
+  geom_vline(xintercept = 0, linetype = "dotted", color = "black", size=2) +    
+  geom_smooth(method = "lm", se = FALSE, aes(group = factor(mean_PANES)), 
+  linetype = "solid") +   labs(title = "Figure 2: PANES Received by Predicted Income",
+  x = "Predicted Income",y = "PANES Received (1 = Yes, 0 = No)",color = "Income Threshold") +  
+  theme_minimal() +theme(legend.position = "top", legend.title = element_text(face = "bold"), 
+  legend.text = element_text(size = 12)
+  )
+```
+
+\pagebreak
+
+
+## **Question: What is the purpose of this figure and what should we take away from it? **
+
+**Answer:**
+
+This figure represents the difference in treatment on income. We recognize this model as a sharp RD design, as the likelihood of treatment is 100% with respect to the income threshold. If below the 0 point baseline, the household is a beneficiary of the PANES program. If a household is above the threshold there is a 0% chance of PANES eligibility.
+
+\pagebreak
+
+## **Question: Replicate figures  3 and 4. Make these figures as clear and informative as possible (2pages).  **
+
+```{r figures 3 and 4, results='asis'}
+
+ggplot(summary_stats, aes(x = mean_income, y = mean_support_2007, color = factor(mean_PANES))) +
+  geom_point(alpha = 0.6, size = 3) +  # Add points with some transparency
+  scale_color_manual(values = c("blue", "red"), labels = c("Below Threshold", 
+  "Above Threshold")) +geom_vline(xintercept = 0, linetype = "dotted", color = "black", size=2) +  
+    geom_smooth(method = "lm", se = FALSE, aes(group = factor(mean_PANES)), linetype = "solid") + 
+  labs(
+    title = "Figure 3: Government Support 2007 by Predicted Income",
+    x = "Predicted Income",
+    y = "Government Support 2007",
+    color = "Income Threshold"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top", 
+    legend.title = element_text(face = "bold"),
+    legend.text = element_text(size = 12)
+  )
+
+ggplot(summary_stats, aes(x = mean_income, y = mean_support_2008, color = factor(mean_PANES))) +
+  geom_point(alpha = 0.6, size = 3) +  # Add points with some transparency
+  scale_color_manual(values = c("blue", "red"), labels = c("Below Threshold", 
+  "Above Threshold")) + geom_vline(xintercept = 0, linetype = "dotted", color = "black", size=2) + 
+    geom_smooth(method = "lm", se = FALSE, aes(group = factor(mean_PANES)), linetype = "solid") + 
+  labs(
+    title = "Figure 4: Government Support 2008 by Predicted Income",
+    x = "Predicted Income",
+    y = "Government Support 2008",
+    color = "Income Threshold"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top", 
+    legend.title = element_text(face = "bold"),
+    legend.text = element_text(size = 12)
+  )
+
+```
+
+\pagebreak
+
+
+## **Question: Interpret these figures. What should we take away from them? **
+
+**Answer:** 
+These figures represent the government support at baseline (Figure 3), and government support after the PANES program took effect (Figure 4). If the treatment is effective in increasing government support, we should see continuity in Figure 3 before and after the threshold. This indicates a consistent rate of government support across the threshold as it is an arbitrary indicator before PANES took effect. However, in Figure 4 we should see a discontinuity at the threshold, indicating a change in government favorability due to the treatment of PANES.
+\pagebreak
+
+
+## **Question: Replicate the results of the three regressions estimated in the first column of table 1. Present your results in a table. Interpret the coefficients.**
+
+**Code:**
+```{r regressions, results='asis'}
+model1 <- felm(aprobado~newtreat, data=df)
+model2 <- felm(rs07~newtreat, data=df)
+model3 <- felm(rs08~newtreat, data=df)
+
+stargazer(model1, model2, model3, type = "latex", 
+          title = "Model Summary", 
+          dep.var.labels = c("Ever received PANES", 
+                               "Government support 2007", 
+                               "Government support 2008"), 
+          covariate.labels = c("Eligibility"),
+          column.labels = ,
+          model.names = FALSE,
+          font.size = "small",
+          style = "ajps",
+          no.space = TRUE,
+          omit = c("rsq", "f", "adj.rsq"),
+          digits = 3)   
+```
+
+
+**Answer:**
+
+Model 1 estimates the relationship between PANES eligibility and the likelihood of ever receiving PANES, finding an increase of 0.995, suggesting that current eligibility is highly correlated with past eligibility. 
+
+Model 2 examines the impact of PANES eligibility on support for the government in 2007, showing a statistically significant increase in government favorability by 0.129, indicating that households eligible for PANES tend to show higher support for the government in that year.
+
+Model 3 looks at government support in 2008, also in relation to PANES eligibility, finding a positive correlation of 0.118, suggesting a similar but slightly weaker relationship between eligibility and support for the government in the subsequent year.
+\pagebreak
+
+
+## **Question: Write down the specifications used in row 2 of columns 1,2 and 3 of table 1. **
+
+**Answer:**
+Column 1 $G_7 = \beta_0 + \beta_1*Eligible$
+
+Column 2 $G_7 = \beta_0 + \beta_1*(Eligible\times Predicted Income)$
+
+Column 3: $G_7 = \beta_0 + \beta_1*(Eligible\times Predicted Income^2)$
+
+\pagebreak
+
+
+## **Question: Replicate the results reported in row 2 of Table 1 columns 1, 2 and 3. Explain the difference between these specifications and interpret their coefficients. (2 pages)**
+Hint: the variables listed in the table above after newtreat are the controls you will want to include.
+
+**Code:**
+```{r, results='asis'}
+
+model4 <- felm(rs07~newtreat, data = df)  # no controls
+model5 <- felm(rs07~newtreat + ind_reest+newtreat*ind_reest, data = df)  # linear
+model6 <- felm(rs07~newtreat + ind_reest+psqd+newtreat*ind_reest+newtreat*psqd, data = df)  #quadratic
+
+stargazer(model4, model5, model6, type = "latex", 
+          title = "Model Summary", 
+          dep.var.labels = c("Untracked in 2007"), 
+          covariate.labels = c(
+            "Eligibility", 
+            "Predicted Income", 
+            "Predicted Income (Squared)", 
+            "Eligibility × Predicted Income",
+            "Eligibility × Predicted Income (Squared)"
+          ),
+          column.labels = c("No Controls", "Linear Controls", "Quadratic Controls"),
+          model.names = FALSE,
+          font.size = "small",
+          style = "ajps",
+          no.space = TRUE,
+          omit = c("rsq", "f", "adj.rsq"),
+          digits = 3)
+```
+\pagebreak
+**Answer:**
+Each subsequent specification adds a polynomial of ind_reest and an interaction term with newtreat (polynomials of 0, 1, and 2). The previous terms are carried forward into each new regression. The first regression shows that PANES eligibility is associated with a statistically significant increase of 0.129 points in support for the government in 2007. The second regression indicates that, when controlling for predicted income and its interaction with eligibility, the increase is 0.110 points. The third regression, which includes predicted income, its square, and the interactions with eligibility, shows a similar increase of 0.130 points. In all regressions, the coefficient for newtreat is significant at the 1% level, allowing us to reject the null hypothesis of no relationship between PANES eligibility and support for the government in 2007.
+
+\pagebreak
+
+
+## **Question: What is the point of including all of these specifications?**
+
+**Answer:**
+These allow for different regression styles on 2007 government favorability. The best fit for the data will provide understanding of the treatment effect to a better degree. Additionally controlling for more variables will help confirm there is no omitted variable bias. 
+
+\pagebreak
+
+
+## **Question: Using the coefficients estimated above, write out the function you would use to predict the probability a household supports the current government based on their predicted income score: **
+
+**a) If they are eligible for the transfer using the results from column 1.**
+$$G_7 = 0.772 + 0.129 \times1 = 0.901 $$
+
+**b) If they are not eligible for the transfer using the results from column 1.**
+$$G_7 = 0.772 + 0.129 \times 0 = 0.772 $$
+
+**c) If they are eligible for the transfer using the results from column 2.**
+$$G_7 = 0.772 + 0.011\times1 -0.011 = 1.916\times1 = -1.144$$
+**d) If they are not eligible for the transfer using the results from column 2.**
+$$ G_7 = 0.772 + 0.011\times0 -0.011-1.916\times0 = 0.761$$
+
+**e) If they are eligible for the transfer using the results from column 3.**
+$$G_7 = 0.769 + 0.130\times1 + 0.812 - 40.457 + 2.377\times1 + 292.25\times1 = 255.881$$
+
+**f) If they are not eligible for the transfer using the results from column 3.**
+$$G_7 = 0.769 + 0.230\times0 + 0.812 - 40.457 + 2.377\times0 + 292.25\times0 = 38.876$$
+
+\pagebreak
+
+
+## **Question: How narrow is the "bandwidth" used by the authors. Why does this matter? Check that the results are robust to a narrower bandwidth. **
+
+**Code:**
+```{r, results='asis', warning=FALSE}
+r_band <- df[df$ind_reest < 0.01 & df$ind_reest > -0.01,]
+
+model8 <- felm(rs07 ~ newtreat, data = r_band)
+model9 <- felm(rs07 ~ newtreat + ind_reest + newtreat*ind_reest, data = r_band)
+model10 <- felm(rs07 ~ newtreat + ind_reest + psqd+
+                        newtreat*ind_reest + newtreat*psqd, data = r_band)
+model11 <- felm(rs08 ~ newtreat, data = r_band)
+stargazer(model8, model9, model10, model11, 
+se = list(model8$se, model9$se, model10$se, model11$se),
+type = "latex",title = "Robustness With Narrow Bandwidth", dep.var.labels = 
+  c("Government Support 2007", "Government Support 2008"), covariate.labels = c(),
+model.names = FALSE, font.size = "small",style = "ajps",no.space = TRUE,digits = 3)
+```
+
+**Answer:**
+
+A very large bandwidth can decrease standard errors but as you get further from the threshold, it is harder to argue the data is similar. Additionally, a larger bandwidth means a more accurate regression is necessary to show the true treatment effect at the threshold. A small bandwidth essentially compares means, while a large bandwidth compares y-intercepts with the threshold, requiring a very accurate regression. This table shows the data is still robust at a smaller bandwidth due to the statistically significant coefficients.
+
+
+\pagebreak
+
+
+## **Question: The authors attribute these effects to the causal effect of receiving the government transfers. What is the implied assumption behind this interpretation?**
+
+**Answer:**
+
+We must assume in the absence of the treatment, there would be a continuous transition across the threshold. The absence of any noticeable difference at the threshold suggests that there are no inherent variations in political opinion around the income cutoff. Additionally, we must assume households on either side of the threshold are not substantially different ie similar at baseline.
+
+
+\pagebreak
+
+
+## **Question: What evidence do they provide to support this assumption?**
+
+**Answer:**
+The authors analyze households on either side of the threshold and find no significant differences across variables such as age, education, income, and gender. Their comparison suggests that the households are similar in these respects, regardless of their position relative to the threshold. From this, they infer that the distribution of households around the threshold is effectively random, supporting the assumption that any potential treatment effect is not confounded by systematic differences.
+
+\pagebreak
+
+
+## **Question: Was this threshold eligibility score specifically designed for this particular program? Why does this matter?**
+
+**Answer:**
+Yes, the threshold eligibility score was designed for this program. Deciding this scoring for the program prevents fuzzy RD estimation. As there is a monetary incentive to manipulate your way into the program, had the metrics been known by the public or manipulable by households, we may see issues with compliance and therefore could not assume similarities across the threshold at baseline.
+
+\pagebreak
+
+
+
+
+
+
+
