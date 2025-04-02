@@ -1,0 +1,233 @@
+---
+title: 'ECON 1190 Problem Set 4: Randomized Control Trials'
+author: "Claire Duquennois"
+date: ""
+output:
+ pdf_document:
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+**Name:**
+
+
+
+
+# Empirical Analysis using Data from Bryan, G., Chowdury, S., Mobarak, A. M. (2014, Econometrica)
+
+
+This exercise uses data from Bryan, Chowdhury, and Mobarak's paper, "Underinvestment in a Profitable Technology: the Case of Seasonal Migration in Bangladesh," published in *Econometrica* in 2014. This paper studies the effects of seasonal migration on household consumption during the lean season in rural Bangladesh by randomly subsidizing the cost of seasonal migration. 
+
+The data can be found by going to Mushfiq Mobarak's Yale faculty page, and then following the link to the data repository page on the Harvard dataverse. 
+
+
+**Submission instructions:**
+
+1) Knit your assignment in PDF.
+
+2) **Assignment shell extra credit:** You will receive a little extra credit if your answers line up correctly with the answer positions of the template on gradescope. For this to work 
+
+- **Work by putting your answers directly into this R markdown file that is pre-formatted for you!**
+
+- Make sure you have ONE question and answer per page (this is how the template is structured and  allows gradescope to easily find your answers), unless the question indicated that the answer will require two pages because of large tables. 
+
+- Your final PDF should be 20 pages. 
+
+- You can insert needed page breaks as illustrated below
+
+- Make sure you do not "print" the data. If you change the data, make sure you store with a structure like: newname<-modification(olddata). If you only type modification(olddata), R will display the data rather than saving your modifications
+
+
+3) Upload your assignment PDF to gradescope.
+
+
+\pagebreak
+
+# Set Up: 
+
+## Question: Loading the data -  Load any packages you will need and the data contained in the following files `Round1_Controls_Table1.dta` and `Round2.dta`. How many observations are contained in each of these datasets. What is the level of an observation (eg. city, city bby year, state, individuals, households)? (2 pages )
+
+**Code and Answer:**
+
+
+\pagebreak
+
+## Question: Keep the variables listed below. A description of each variable should appear in the column headers of the loaded data. 
+
+For Round 1 data:
+
+| Name            |Description                                                                                                     |
+|-----------------|----------------------------------------------------------------------------------------------------------------|
+|incentivized     |Is 1 if the household is in either the cash or credit treatment groups, 0 if in the information or control group|
+|q9pdcalq9        |Total calories per person per day                                                                               | 
+|exp_total_pc_r1  |Total monthly household expenditures per capita                                                                 |
+|hhmembers_r1     |Number of household members                                                                                     |
+|tsaving_hh_r1    |Total household savings                                                                                         |
+
+
+For Round 2 data:
+
+| Name            |Description                                                                                                     |
+|-----------------|----------------------------------------------------------------------------------------------------------------|
+|incentivized     |Is 1 if the household is in either the cash or credit treatment groups, 0 if in the information or control group|
+|average_exp2     |Total consumption per person per month in round 2                                                               |
+|upazila          |Sub-district name                                                                                               |
+|village          |Village name                                                                                                    |
+|migrant          |Member of household migrates this season                                                                        |
+|total_fish       |Total monthly household expenditures per capita on fish                                                         |
+
+**Code:**
+
+\pagebreak
+
+## **Question: Because the effects of the cash and credit treatment arms are similar and they find no effect of the information treatment, the authors choose to focus much of their analysis on the contrast between the incentivized group (cash and credit) and the not incentivised group (information and control). We will do the same. Regress all the baseline household characteristics still included in the round 1 data on the incentivized indicator. Present your results in a table. What is the equivalent table in the paper?** 
+Hint: make sure to use the same type of standard errors as used in the paper!
+
+**Code:**
+
+
+**Answer:** 
+
+\pagebreak
+
+## **Question: How should the coefficients in the table above be interpreted? What should we look for in this table?**
+
+**Answer:**
+
+
+\pagebreak
+
+## **Question: Using the round 2 data, regress migrant on the incentivized treatment indicator. What is the equivalent table in the paper?**
+
+**Code:**
+
+**Answer:** 
+
+\pagebreak
+
+## **Question: How should the coefficients in the table above be interpreted? Why is this table important? Is the constant meaningful?**
+
+**Answer:**
+
+\pagebreak
+
+## **Question: What is the underlying migration rate in the non-incentivized group? How might this change our interpretation of the results for the information treatment arm? Whose decision is impacted by the intervention? **
+
+**Answer:**
+
+
+\pagebreak
+
+## Question: Replicate the (exact) results presented in the third row of the fourth column of table 3. Present your result in a table and interpret this result.
+
+Hint 1: The authors elect to drop one household observation because the reported value of total fish consumed in the household is very high. 
+
+Hint 2: To replicate the standard errors in the paper make sure to cluster your standard errors as the authors do. 
+
+
+
+**Code:**
+
+
+**Answer:**
+
+
+
+
+\pagebreak
+
+## Question: Run the same estimate without fixed effects and present your results in a table. What happens to the coefficient and standard errors? Is this surprising? What does this tell us?
+**Code:**
+
+**Answer:**
+
+
+
+\pagebreak
+
+
+## **Question: Why is the header of the first five columns of table 3 "ITT". What is meant by this and what does this tell us about how we should interpret these results?**
+
+**Answer:**
+
+
+\pagebreak
+
+## **Question: We are interested in estimating how migration affects total expenditures for the households that were induced to migrate by the cash and credit treatments as follows,**
+
+$$
+TotExp_{ivj}=\alpha+\beta_1Migrate_{ivj}+\varphi_j+\nu_{ivj}
+$$
+**where $Migrate_{ivj}$ is dummy indicator for if a member of household i in village v in subdistrict j migrated, and $\varphi_j$ are the subdistrict fixed effects. However it is not possible to identify in the data which households were induced by the treatment vs those who would have migrated either way. Furthermore, there is likely substantial selection between the households that select into migration versus those that do not. Propose a source of exogenous variation that can be used as an instrument to isolate "good" exogenous variation in migration. **
+
+**Answer:**
+
+\pagebreak
+
+## **Question: What is the first stage specification?**
+**Answer:**
+
+\pagebreak
+
+## **Question: Estimate the first stage and check that you have a strong (not weak) instrument for migration.**
+
+ Note: The first stage results reported in the paper appendix may differ slightly as explained in the table footnote.  
+
+**Code:**
+
+
+**Answer:**
+
+\pagebreak
+
+## **Question: Use your instrument to estimate the LATE (Local Average Treatment Effect), the impact of migration on total consumption for those induced to migrate by the treatment, as in columns 6 of table 3 in the paper. Interpret your results. **
+
+Note: If you just use Incentivized as your instrument, your estimates will not be exactly the same. If you wish to replicate the paper's coefficients exactly, you will need to use multiple instruments, one for each treatment arm. 
+
+**Code:**
+
+
+**Answer:**
+
+
+
+\pagebreak
+
+
+## **Question: Why is this result different from the result in columns 4?  **
+
+**Answer:** 
+
+
+
+\pagebreak
+
+
+## **Question: Why is this value particularly relevant for policy decisions about the cost effectivness of the treatment in the context of this experiment.**
+
+**Answer:**
+
+
+\pagebreak
+
+## **Question: Suppose a policy maker found these results so compelling that they decided to make this a national policy. How would general equilibrium effects potentially change the impacts of this policy if it was implemented in a very large scale way?**
+
+**Answer:**
+
+
+\pagebreak
+
+## **Question: One major concern that is often brought up in discussions about RCT's is the problem of external validity. It is not always clear how informative the findings from a small scale research project in one context are for policy makers working on a different scale and in different contexts. What are your thoughts on the external validity of this particular project and RCT's in general? **
+
+**Answer:**
+
+
+\pagebreak
+
+
+
+ 
+
